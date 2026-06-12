@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Onde Tem Samba</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{
+  --primary:#D4641A;
+  --primary-dark:#A84E14;
+  --primary-light:#E8904A;
+  --bg-dark:#241608;
+  --cream:#F6EAD4;
+  --ocre:#B98A41;
+  --surface:#F9F4EC;
+  --border:#E8DCC8;
+  --text:#2A1A0C;
+  --text-muted:#8A7060;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--surface);}
+#app{display:flex;flex-direction:column;height:100vh;}
+
+/* TOPBAR */
+#topbar{
+  background:var(--bg-dark);padding:10px 16px;
+  display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:1000;
+}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;}
+.brand-icon{
+  width:32px;height:32px;background:var(--primary);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;
+  box-shadow:0 0 0 3px rgba(212,100,26,.25);
+}
+.brand-text{font-size:14px;font-weight:600;color:var(--cream);letter-spacing:.02em;}
+.brand-text em{color:var(--primary-light);font-style:normal;}
+#filters{display:flex;gap:6px;flex:1;justify-content:center;flex-wrap:wrap;}
+.fbtn{
+  background:rgba(246,234,212,.1);border:0.5px solid rgba(246,234,212,.2);
+  color:var(--cream);padding:5px 14px;border-radius:20px;font-size:12px;
+  cursor:pointer;white-space:nowrap;transition:all .15s;font-family:inherit;
+}
+.fbtn:hover{background:rgba(246,234,212,.18);}
+.fbtn.on{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600;}
+#locate-btn{
+  background:rgba(246,234,212,.1);border:0.5px solid rgba(246,234,212,.25);
+  color:var(--cream);padding:6px 12px;border-radius:8px;font-size:12px;
+  cursor:pointer;white-space:nowrap;flex-shrink:0;font-family:inherit;
+  display:flex;align-items:center;gap:5px;transition:all .15s;
+}
+#locate-btn:hover{background:rgba(246,234,212,.18);}
+
+/* MAIN */
+#main{display:flex;flex:1;overflow:hidden;}
+
+/* SIDEBAR */
+#sidebar{
+  width:300px;background:var(--surface);border-right:0.5px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;
+}
+#sb-header{padding:12px 14px 10px;border-bottom:0.5px solid var(--border);}
+#sb-header h2{font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;}
+#search{
+  width:100%;padding:7px 10px;font-size:12px;
+  border:0.5px solid var(--border);border-radius:8px;
+  background:#fff;font-family:inherit;outline:none;
+  transition:border-color .15s;color:var(--text);
+}
+#search:focus{border-color:var(--primary);}
+#tag-filters{
+  padding:8px 14px;border-bottom:0.5px solid var(--border);
+  display:flex;gap:5px;flex-wrap:wrap;
+}
+.tag{
+  padding:3px 9px;border-radius:12px;font-size:11px;
+  border:0.5px solid var(--border);color:var(--text-muted);
+  cursor:pointer;transition:all .12s;background:#fff;
+}
+.tag:hover{border-color:var(--primary);color:var(--primary);}
+.tag.on{background:var(--primary);color:#fff;border-color:var(--primary);}
+#events-list{flex:1;overflow-y:auto;padding:8px;}
+.ev-card{
+  padding:10px 12px;border-radius:8px;margin-bottom:6px;cursor:pointer;
+  border:0.5px solid var(--border);background:#fff;transition:all .12s;
+}
+.ev-card:hover{border-color:var(--primary);background:#fffaf5;}
+.ev-card.sel{border:1.5px solid var(--ocre);background:#fffaf5;}
+.ev-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+.ev-name{font-size:12px;font-weight:600;color:var(--text);flex:1;line-height:1.3;}
+.ev-badge{font-size:10px;padding:2px 7px;border-radius:10px;margin-left:6px;flex-shrink:0;font-weight:500;}
+.bg-hoje{background:#FFE4C8;color:#A84E14;}
+.bg-fds{background:#F3E8D0;color:#7A5020;}
+.bg-semana{background:#EEE4D4;color:#5A3E20;}
+.ev-meta{font-size:11px;color:var(--text-muted);display:flex;flex-direction:column;gap:2px;}
+.ev-destaque{
+  display:flex;align-items:center;gap:4px;
+  font-size:10px;color:var(--ocre);margin-top:3px;font-weight:500;
+}
+#sb-count{
+  padding:7px 14px;border-top:0.5px solid var(--border);
+  font-size:11px;color:var(--text-muted);background:var(--surface);
+}
+#sb-count strong{color:var(--text);}
+
+/* MAP */
+#map{flex:1;z-index:1;}
+
+/* Tiles mais quentes via filter */
+.leaflet-tile-pane { filter: sepia(18%) saturate(90%) brightness(98%); }
+
+/* PINS */
+.pin-wrap{display:flex;flex-direction:column;align-items:center;cursor:pointer;}
+.pin-head{
+  width:36px;height:36px;border-radius:50% 50% 50% 0;
+  transform:rotate(-45deg);display:flex;align-items:center;
+  justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,.3);
+  border:2px solid rgba(255,255,255,.6);
+  transition:transform .15s;
+}
+.pin-head:hover{transform:rotate(-45deg) scale(1.15);}
+.pin-icon{transform:rotate(45deg);font-size:14px;}
+.pin-hoje   .pin-head{background:var(--primary);}
+.pin-fds    .pin-head{background:#8B4513;}
+.pin-semana .pin-head{background:#6B3A1F;}
+.pin-dest   .pin-head{background:var(--ocre);border-color:#fff;}
+
+/* POPUP */
+.map-popup .leaflet-popup-content-wrapper{
+  border-radius:12px;padding:0;overflow:hidden;
+  border:0.5px solid var(--border);
+  box-shadow:0 6px 24px rgba(36,22,8,.15);
+  background:var(--surface);
+}
+.map-popup .leaflet-popup-content{margin:0;width:230px!important;}
+.popup-header{
+  background:var(--bg-dark);padding:10px 14px;
+}
+.popup-header h3{font-size:13px;font-weight:600;color:var(--cream);line-height:1.3;}
+.popup-org{font-size:11px;color:var(--primary-light);margin-top:2px;}
+.popup-body{padding:10px 14px;}
+.popup-tags{margin-bottom:8px;}
+.popup-tag{
+  display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;
+  background:#F0E4D0;color:var(--primary-dark);margin-right:4px;margin-bottom:3px;
+  font-weight:500;
+}
+.popup-meta{font-size:12px;color:var(--text-muted);line-height:1.9;margin-bottom:10px;}
+.popup-btn{
+  display:block;width:100%;padding:8px;
+  background:var(--primary);color:#fff;
+  border:none;border-radius:8px;font-size:12px;
+  cursor:pointer;font-family:inherit;font-weight:600;
+  transition:background .15s;
+}
+.popup-btn:hover{background:var(--primary-dark);}
+
+/* LEGEND */
+#legend{
+  position:absolute;bottom:28px;left:316px;z-index:500;
+  background:var(--surface);border:0.5px solid var(--border);
+  border-radius:10px;padding:8px 12px;font-size:11px;
+  color:var(--text-muted);box-shadow:0 2px 10px rgba(36,22,8,.1);
+}
+.leg-row{display:flex;align-items:center;gap:7px;margin-bottom:4px;}
+.leg-row:last-child{margin-bottom:0;}
+.leg-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <a class="brand" href="#">
+      <div class="brand-icon">📍</div>
+      <div class="brand-text">onde tem <em>samba</em></div>
+    </a>
+    <div id="filters">
+      <button class="fbtn on"  onclick="setFilter('todos',this)">Todos</button>
+      <button class="fbtn" onclick="setFilter('hoje',this)">Hoje</button>
+      <button class="fbtn" onclick="setFilter('fim-semana',this)">Fim de semana</button>
+      <button class="fbtn" onclick="setFilter('gratuito',this)">Gratuito</button>
+    </div>
+    <button id="locate-btn" onclick="locateUser()">📍 Minha localização</button>
+  </div>
+
+  <div id="main">
+    <div id="sidebar">
+      <div id="sb-header">
+        <h2>Eventos</h2>
+        <input id="search" type="text" placeholder="Buscar evento, bairro ou espaço..." oninput="applyFilters()"/>
+      </div>
+      <div id="tag-filters">
+        <span class="tag" onclick="toggleTag(this,'pagode')">Pagode</span>
+        <span class="tag" onclick="toggleTag(this,'samba-de-raiz')">Raiz</span>
+        <span class="tag" onclick="toggleTag(this,'partido-alto')">Partido alto</span>
+        <span class="tag" onclick="toggleTag(this,'samba-rock')">Samba-rock</span>
+        <span class="tag" onclick="toggleTag(this,'choro')">Choro</span>
+      </div>
+      <div id="events-list"></div>
+      <div id="sb-count"><strong id="count-n">0</strong> eventos encontrados</div>
+    </div>
+    <div id="map"></div>
+  </div>
+</div>
+
+<div id="legend">
+  <div class="leg-row"><div class="leg-dot" style="background:#D4641A"></div>Hoje</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#8B4513"></div>Fim de semana</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#6B3A1F"></div>Esta semana</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#B98A41;border:1px solid #8A6020"></div>Destaque Pro</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const today = new Date();
+const addDays = (n) => { const d=new Date(today); d.setDate(d.getDate()+n); return d.toISOString().split('T')[0]; };
+
+// ── EVENTOS (coordenadas reais geocodificadas) ──
+const EVENTOS = [
+  { id:1, nome:"Pagode toda quinta",
+    organizador:"Bar do Léo", bairro:"Consolação · São Paulo",
+    endereco:"Rua Augusta, 1200, Consolação, SP",
+    lat:-23.5545, lng:-46.6580,
+    data:addDays(0), hora:"20h", recorrencia:"Toda semana",
+    ingresso:"R$ 25", estilos:["pagode"], destaque:true },
+
+  { id:2, nome:"Roda de samba especial",
+    organizador:"Bar do Léo", bairro:"Consolação · São Paulo",
+    endereco:"Rua Augusta, 1200, Consolação, SP",
+    lat:-23.5545, lng:-46.6580,
+    data:addDays(4), hora:"19h", recorrencia:"Mensal",
+    ingresso:"R$ 35", estilos:["samba-de-raiz"], destaque:true },
+
+  { id:3, nome:"Partido alto — entrada livre",
+    organizador:"Espaço Samba Vivo", bairro:"Bela Vista · São Paulo",
+    endereco:"Rua Treze de Maio, 487, Bela Vista, SP",
+    lat:-23.5614, lng:-46.6453,
+    data:addDays(1), hora:"18h", recorrencia:"Quinzenal",
+    ingresso:"Gratuito", estilos:["partido-alto"], destaque:false },
+
+  { id:4, nome:"Noite de raiz",
+    organizador:"Espaço Samba Vivo", bairro:"Bela Vista · São Paulo",
+    endereco:"Rua Treze de Maio, 487, Bela Vista, SP",
+    lat:-23.5614, lng:-46.6453,
+    data:addDays(5), hora:"20h", recorrencia:"Único",
+    ingresso:"R$ 15", estilos:["samba-de-raiz"], destaque:false },
+
+  { id:5, nome:"Pagode beira mar",
+    organizador:"Quiosque da Orla", bairro:"Copacabana · Rio de Janeiro",
+    endereco:"Av. Atlântica, 3456, Copacabana, RJ",
+    lat:-22.9711, lng:-43.1822,
+    data:addDays(2), hora:"17h", recorrencia:"Todo sábado",
+    ingresso:"Gratuito", estilos:["pagode","samba-rock"], destaque:true },
+
+  { id:6, nome:"Roda de terça — partido alto",
+    organizador:"Casa do Partido", bairro:"Centro · Rio de Janeiro",
+    endereco:"Rua Barão de São Félix, 45, Centro, RJ",
+    lat:-22.9064, lng:-43.1822,
+    data:addDays(1), hora:"21h", recorrencia:"Toda terça",
+    ingresso:"Gratuito", estilos:["partido-alto"], destaque:false },
+
+  { id:7, nome:"Samba de raiz — Vila Madalena",
+    organizador:"Boteco do Samba", bairro:"Vila Madalena · São Paulo",
+    endereco:"Rua Aspicuelta, 580, Vila Madalena, SP",
+    lat:-23.5580, lng:-46.6892,
+    data:addDays(3), hora:"21h", recorrencia:"Único",
+    ingresso:"R$ 20", estilos:["samba-de-raiz","choro"], destaque:false },
+
+  { id:8, nome:"Pagode da Lapa",
+    organizador:"Empório da Lapa", bairro:"Lapa · Rio de Janeiro",
+    endereco:"Rua do Riachuelo, 20, Lapa, RJ",
+    lat:-22.9140, lng:-43.1780,
+    data:addDays(2), hora:"22h", recorrencia:"Semanal",
+    ingresso:"R$ 30", estilos:["pagode"], destaque:true },
+];
+
+// ── MAPA (centro entre SP e RJ) ──
+const map = L.map('map',{center:[-23.1,-44.8],zoom:7,zoomControl:true});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19, attribution:'© OpenStreetMap'
+}).addTo(map);
+
+// ── ESTADO ──
+let activeFilter='todos', activeTags=new Set(), searchTerm='', selectedId=null;
+const markers={};
+const layer=L.layerGroup().addTo(map);
+
+// ── HELPERS ──
+function dayType(ds){
+  const d=new Date(ds+'T12:00:00'), diff=Math.round((d-today)/86400000), dow=d.getDay();
+  if(diff===0) return 'hoje';
+  if(dow===0||dow===6) return 'fds';
+  return 'semana';
+}
+function dayLabel(ds){
+  const t=dayType(ds);
+  if(t==='hoje') return 'Hoje';
+  const d=new Date(ds+'T12:00:00');
+  return d.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'});
+}
+function pinCls(ev){
+  if(ev.destaque) return 'pin-dest';
+  const t=dayType(ev.data);
+  return t==='hoje'?'pin-hoje':t==='fds'?'pin-fds':'pin-semana';
+}
+function makeIcon(ev, faded){
+  const cls=pinCls(ev);
+  const html=`<div class="pin-wrap ${cls}" style="opacity:${faded?0.2:1}">
+    <div class="pin-head"><span class="pin-icon">🎵</span></div>
+  </div>`;
+  return L.divIcon({html,className:'',iconSize:[36,46],iconAnchor:[18,44],popupAnchor:[0,-50]});
+}
+function popupHtml(ev){
+  const tags=ev.estilos.map(s=>`<span class="popup-tag">${s}</span>`).join('');
+  const dest=ev.destaque?`<div style="font-size:10px;color:#B98A41;margin-top:4px;">⭐ Espaço em destaque</div>`:'';
+  return `<div>
+    <div class="popup-header">
+      <h3>${ev.nome}</h3>
+      <div class="popup-org">📍 ${ev.organizador}${ev.destaque?' · Pro':''}</div>
+    </div>
+    <div class="popup-body">
+      <div class="popup-tags">${tags}</div>
+      <div class="popup-meta">
+        🗓 ${dayLabel(ev.data)} às ${ev.hora}<br>
+        🔁 ${ev.recorrencia}<br>
+        🎟 ${ev.ingresso}<br>
+        🏠 ${ev.bairro}
+      </div>
+      <button class="popup-btn">Ver detalhes</button>
+    </div>
+  </div>`;
+}
+
+// ── FILTRO ──
+function filtered(){
+  return EVENTOS.filter(ev=>{
+    if(activeFilter==='hoje' && dayType(ev.data)!=='hoje') return false;
+    if(activeFilter==='fim-semana' && dayType(ev.data)!=='fds') return false;
+    if(activeFilter==='gratuito' && ev.ingresso!=='Gratuito') return false;
+    if(activeTags.size>0 && !ev.estilos.some(t=>activeTags.has(t))) return false;
+    if(searchTerm){
+      const s=searchTerm.toLowerCase();
+      if(!ev.nome.toLowerCase().includes(s)&&!ev.bairro.toLowerCase().includes(s)&&!ev.organizador.toLowerCase().includes(s)) return false;
+    }
+    return true;
+  });
+}
+
+// ── RENDER ──
+function render(){
+  const evs=filtered(), ids=new Set(evs.map(e=>e.id));
+  layer.clearLayers();
+
+  EVENTOS.forEach(ev=>{
+    const faded=!ids.has(ev.id);
+    const m=L.marker([ev.lat,ev.lng],{icon:makeIcon(ev,faded),zIndexOffset:ev.destaque?100:0});
+    if(!faded){
+      m.bindPopup(popupHtml(ev),{className:'map-popup',maxWidth:250});
+      m.on('click',()=>selectEvent(ev.id));
+    }
+    m.addTo(layer);
+    markers[ev.id]=m;
+  });
+
+  const list=document.getElementById('events-list');
+  list.innerHTML='';
+  evs.forEach(ev=>{
+    const card=document.createElement('div');
+    card.className='ev-card'+(selectedId===ev.id?' sel':'');
+    card.innerHTML=`
+      <div class="ev-top">
+        <span class="ev-name">${ev.nome}</span>
+        <span class="ev-badge bg-${dayType(ev.data)==='hoje'?'hoje':dayType(ev.data)==='fds'?'fds':'semana'}">${dayLabel(ev.data)}</span>
+      </div>
+      <div class="ev-meta">
+        <span>📍 ${ev.bairro}</span>
+        <span>🕐 ${ev.hora} · ${ev.ingresso}</span>
+      </div>
+      ${ev.destaque?'<div class="ev-destaque">⭐ Destaque</div>':''}`;
+    card.onclick=()=>{
+      selectEvent(ev.id);
+      map.setView([ev.lat,ev.lng],15,{animate:true});
+      markers[ev.id]&&markers[ev.id].openPopup();
+    };
+    list.appendChild(card);
+  });
+  document.getElementById('count-n').textContent=evs.length;
+}
+
+function selectEvent(id){selectedId=id;render();}
+function setFilter(f,btn){
+  activeFilter=f;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');render();
+}
+function toggleTag(el,tag){
+  el.classList.toggle('on');
+  activeTags.has(tag)?activeTags.delete(tag):activeTags.add(tag);render();
+}
+function applyFilters(){searchTerm=document.getElementById('search').value;render();}
+function locateUser(){map.locate({setView:true,maxZoom:13});}
+map.on('locationfound',e=>{
+  L.circleMarker(e.latlng,{radius:10,fillColor:'#D4641A',color:'#241608',weight:2,fillOpacity:1})
+   .addTo(map).bindPopup('Você está aqui').openPopup();
+});
+
+render();
+</script>
+</body>
+</html>
