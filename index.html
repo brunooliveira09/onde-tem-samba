@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Encontre eventos de samba perto de você — pagode, raiz, partido alto no mapa."/>
+  <meta name="theme-color" content="#0D0A07"/>
+
+  <!-- Open Graph -->
+  <meta property="og:title"       content="Onde Tem Samba"/>
+  <meta property="og:description" content="O mapa de eventos de samba do Brasil."/>
+  <meta property="og:type"        content="website"/>
+
+  <title>Onde Tem Samba</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <!-- Estilos do app -->
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- ══════════════════════════════════
+     MAPA (ocupa toda a tela)
+══════════════════════════════════ -->
+<div id="map"></div>
+
+<!-- Overlay (fecha o detail ao clicar fora) -->
+<div id="overlay"></div>
+
+<!-- ══════════════════════════════════
+     TOPBAR
+══════════════════════════════════ -->
+<div id="topbar">
+
+  <!-- Logo -->
+  <div class="brand">
+    <div class="brand-dot">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75
+                 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38
+                 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5
+                 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+      </svg>
+    </div>
+    <div class="brand-name">onde tem <em>samba</em></div>
+  </div>
+
+  <!-- Pipe -->
+  <div class="pipe"></div>
+
+  <!-- Busca -->
+  <div class="search-wrap">
+    <svg viewBox="0 0 24 24" stroke-width="2.2"
+         stroke-linecap="round" stroke-linejoin="round"
+         xmlns="http://www.w3.org/2000/svg">
+      <circle cx="11" cy="11" r="7"/>
+      <line x1="16.5" y1="16.5" x2="22" y2="22"/>
+    </svg>
+    <input id="searchbox" type="text" placeholder="Buscar evento"
+           autocomplete="off" spellcheck="false"/>
+  </div>
+
+  <!-- Pipe antes dos filtros (some no mobile) -->
+  <div class="pipe pipe-filters"></div>
+
+  <!-- Filtros desktop -->
+  <div id="filters">
+    <button class="fb on"  data-filter="todos">Todos</button>
+    <button class="fb"     data-filter="hoje">Hoje</button>
+    <button class="fb"     data-filter="fds">Fim de semana</button>
+  </div>
+
+</div>
+
+<!-- Filtros mobile (abaixo da topbar) -->
+<div id="filters-mobile">
+  <button class="fb on"  data-filter="todos">Todos</button>
+  <button class="fb"     data-filter="hoje">Hoje</button>
+  <button class="fb"     data-filter="fds">Fim de semana</button>
+</div>
+
+<!-- ══════════════════════════════════
+     DETAIL BOX (centro da tela)
+══════════════════════════════════ -->
+<div id="detail">
+
+  <!-- Imagem + tags + fechar -->
+  <div id="detail-img-wrap">
+    <div id="detail-img-slot"></div>
+    <div id="detail-tags"></div>
+    <button id="detail-close" aria-label="Fechar">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <line x1="18" y1="6"  x2="6"  y2="18"/>
+        <line x1="6"  y1="6"  x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Corpo -->
+  <div id="detail-body">
+    <div id="detail-header">
+      <div id="detail-name"></div>
+      <span id="detail-badge"></span>
+    </div>
+    <div id="detail-meta"></div>
+    <div id="detail-hr"></div>
+    <button id="detail-btn">Tenho interesse</button>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════
+     SCRIPTS
+══════════════════════════════════ -->
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Supabase JS (necessário apenas quando banco estiver configurado) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+<!-- Configuração (edite suas credenciais aqui) -->
+<script src="config.js"></script>
+
+<!-- Camada de dados -->
+<script src="db.js"></script>
+
+<!-- Lógica do app -->
+<script src="app.js"></script>
+
+</body>
+</html>
