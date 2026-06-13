@@ -4,56 +4,53 @@
 
 const OTS_APP = (() => {
 
-  // ── Estado ──
   let map, layer;
   let curFilter = 'todos';
-  let curSearch = '';
-  let allEvents = [];
+  let curSearch  = '';
+  let allEvents  = [];
 
-  // ── Pandeiro SVG (pin icon) ──
-  const PANDEIRO_SVG = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="20" height="20">
-      <!-- corpo do pandeiro -->
-      <circle cx="16" cy="16" r="13" fill="#0D0A07" stroke="none"/>
-      <!-- aro externo -->
-      <circle cx="16" cy="16" r="13" fill="none" stroke="#0D0A07" stroke-width="3.5"/>
-      <!-- membrana interna -->
-      <circle cx="16" cy="16" r="9.5" fill="none" stroke="#0D0A07" stroke-width="1.5" stroke-dasharray="2 2.5"/>
-      <!-- platinelas (3 pares) -->
-      <rect x="2.5" y="14" width="3" height="4" rx="1" fill="#0D0A07" transform="rotate(-30 16 16) translate(-13 0)"/>
-      <rect x="2.5" y="14" width="3" height="4" rx="1" fill="#0D0A07" transform="rotate(90 16 16) translate(-13 0)"/>
-      <rect x="2.5" y="14" width="3" height="4" rx="1" fill="#0D0A07" transform="rotate(210 16 16) translate(-13 0)"/>
-      <!-- ponto central -->
-      <circle cx="16" cy="16" r="2.5" fill="#0D0A07"/>
-    </svg>`;
+  // Pandeiro SVG inline — tamanho fixo, sem overflow
+  const PANDEIRO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <!-- aro -->
+    <circle cx="12" cy="12" r="10" stroke="#0D0A07" stroke-width="2.5" fill="none"/>
+    <!-- membrana interna -->
+    <circle cx="12" cy="12" r="6" stroke="#0D0A07" stroke-width="1.5" fill="rgba(13,10,7,.3)" stroke-dasharray="2 2"/>
+    <!-- platinelas -->
+    <rect x="1.5" y="11" width="2.5" height="3.5" rx=".8" fill="#0D0A07" transform="rotate(-40 12 12) translate(-10.5 0)"/>
+    <rect x="1.5" y="11" width="2.5" height="3.5" rx=".8" fill="#0D0A07" transform="rotate(80 12 12) translate(-10.5 0)"/>
+    <rect x="1.5" y="11" width="2.5" height="3.5" rx=".8" fill="#0D0A07" transform="rotate(200 12 12) translate(-10.5 0)"/>
+    <!-- centro -->
+    <circle cx="12" cy="12" r="2" fill="#0D0A07"/>
+  </svg>`;
 
-  // ── Cria ícone Leaflet ──
+  // ── Ícone Leaflet ──
   function makeIcon(faded) {
     const op = faded ? 0.13 : 1;
-    const html = `
-      <div class="ots-pin" style="opacity:${op}">
-        <div class="ots-pin-head">
-          <span class="ots-pin-icon">${PANDEIRO_SVG}</span>
-        </div>
-      </div>`;
+    const html = `<div class="ots-pin" style="opacity:${op}">
+      <div class="ots-pin-head">
+        <span class="ots-pin-icon">${PANDEIRO}</span>
+      </div>
+    </div>`;
     return L.divIcon({
-      html, className: '',
-      iconSize: [36, 36], iconAnchor: [18, 34], popupAnchor: [0, -36]
+      html,
+      className: '',
+      iconSize:   [36, 42],
+      iconAnchor: [18, 40],
+      popupAnchor:[0, -42],
     });
   }
 
   // ── Inicializa mapa ──
   function initMap() {
     map = L.map('map', {
-      center: OTS_CONFIG.map.defaultCenter,
-      zoom:   OTS_CONFIG.map.defaultZoom,
-      zoomControl: false,          // removemos o padrão
+      center:          OTS_CONFIG.map.defaultCenter,
+      zoom:            OTS_CONFIG.map.defaultZoom,
+      zoomControl:     false,
       attributionControl: true,
     });
 
-    // Tiles OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
+      maxZoom:     19,
       attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
       crossOrigin: true,
     }).addTo(map);
@@ -64,36 +61,31 @@ const OTS_APP = (() => {
     layer = L.layerGroup().addTo(map);
   }
 
-  // ── Helpers de data ──
-  function dayType(ds) {
-    return OTS_DB.dayType(ds);
-  }
-  function dayLabel(ds) {
-    return OTS_DB.dayLabel(ds);
-  }
-
-  // ── Filtra lista local ──
+  // ── Filtra ──
   function filterEvents(events) {
     return events.filter(ev => {
-      const t = dayType(ev.data);
+      const t = OTS_DB.dayType(ev.data);
       if (curFilter === 'hoje' && t !== 'hoje') return false;
       if (curFilter === 'fds'  && t !== 'fds')  return false;
       if (curSearch) {
         const q = curSearch.toLowerCase();
-        const haystack = [ev.nome, ev.bairro, ev.local, ev.organizador_nome || ''].join(' ').toLowerCase();
-        if (!haystack.includes(q)) return false;
+        const hay = [ev.nome, ev.bairro, ev.local, ev.organizador_nome || ''].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
       }
       return true;
     });
   }
 
-  // ── Renderiza pins no mapa ──
+  // ── Renderiza pins ──
   function renderPins(visible) {
     const ids = new Set(visible.map(e => e.id));
     layer.clearLayers();
     allEvents.forEach(ev => {
       const faded = !ids.has(ev.id);
-      const m = L.marker([ev.lat, ev.lng], { icon: makeIcon(faded), zIndexOffset: faded ? 0 : 100 });
+      const m = L.marker([ev.lat, ev.lng], {
+        icon: makeIcon(faded),
+        zIndexOffset: faded ? 0 : 100,
+      });
       if (!faded) {
         m.on('click', () => {
           map.panTo([ev.lat, ev.lng], { animate: true, duration: 0.4 });
@@ -104,13 +96,12 @@ const OTS_APP = (() => {
     });
   }
 
-  // ── Abre detail box ──
+  // ── Abre detail ──
   function openDetail(ev) {
     const ingresso = OTS_DB.formatIngresso(ev);
 
     // Imagem
-    const imgSlot = document.getElementById('detail-img-slot');
-    imgSlot.innerHTML = ev.foto_url
+    document.getElementById('detail-img-slot').innerHTML = ev.foto_url
       ? `<img id="detail-img" src="${ev.foto_url}" alt="${ev.nome}"
            onerror="this.outerHTML='<div id=detail-img-placeholder>🥁</div>'"/>`
       : `<div id="detail-img-placeholder">🥁</div>`;
@@ -119,11 +110,11 @@ const OTS_APP = (() => {
     document.getElementById('detail-tags').innerHTML =
       (ev.estilos || []).map(s => `<span class="dtag">${s}</span>`).join('');
 
-    // Cabeçalho
+    // Header
     document.getElementById('detail-name').textContent  = ev.nome;
-    document.getElementById('detail-badge').textContent = dayLabel(ev.data);
+    document.getElementById('detail-badge').textContent = OTS_DB.dayLabel(ev.data);
 
-    // Meta grid
+    // Meta
     document.getElementById('detail-meta').innerHTML = `
       <div class="dm">
         <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -142,10 +133,8 @@ const OTS_APP = (() => {
         <span>${ingresso}</span>
       </div>`;
 
-    // Botão de interesse
     document.getElementById('detail-btn').onclick = () => {
-      // Em produção: salvar no Supabase tabela `interesses`
-      alert(`Interesse registrado em: ${ev.nome}\n\nEm breve você receberá mais informações!`);
+      alert(`Interesse registrado em:\n${ev.nome}`);
     };
 
     document.getElementById('detail').classList.add('open');
@@ -158,57 +147,44 @@ const OTS_APP = (() => {
     document.getElementById('overlay').classList.remove('on');
   }
 
-  // ── Render geral ──
-  async function render() {
-    const visible = filterEvents(allEvents);
-    renderPins(visible);
-  }
-
-  // ── Sync filtros mobile com desktop ──
-  function syncMobileFilters(f) {
+  // ── Sincroniza filtros desktop + mobile ──
+  function syncFilters(f) {
     document.querySelectorAll('.fb').forEach(b => {
       b.classList.toggle('on', b.dataset.filter === f);
     });
   }
 
-  // ── Carrega eventos (banco ou seed) ──
+  // ── Carrega e renderiza ──
   async function loadEvents() {
     allEvents = await OTS_DB.getEventos({ tipo: curFilter, search: curSearch });
-    render();
+    renderPins(filterEvents(allEvents));
   }
 
-  // ── Inicialização ──
+  // ── Init ──
   async function init() {
     initMap();
 
-    // Bind overlay
     document.getElementById('overlay').addEventListener('click', closeDetail);
     document.getElementById('detail-close').addEventListener('click', closeDetail);
 
-    // Bind search
     document.getElementById('searchbox').addEventListener('input', e => {
       curSearch = e.target.value.trim();
-      loadEvents();
+      renderPins(filterEvents(allEvents));
     });
 
-    // Bind filtros (desktop + mobile) — usa data-filter
     document.querySelectorAll('.fb').forEach(btn => {
       btn.addEventListener('click', () => {
         curFilter = btn.dataset.filter;
-        syncMobileFilters(curFilter);
+        syncFilters(curFilter);
         closeDetail();
-        loadEvents();
+        renderPins(filterEvents(allEvents));
       });
     });
 
-    // Carrega eventos iniciais
     await loadEvents();
   }
 
-  // API pública
-  return { init, closeDetail, openDetail };
-
+  return { init, closeDetail };
 })();
 
-// Inicia quando DOM estiver pronto
 document.addEventListener('DOMContentLoaded', () => OTS_APP.init());
