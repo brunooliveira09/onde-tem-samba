@@ -1,61 +1,168 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="Encontre eventos de samba perto de você."/>
-  <meta name="theme-color" content="#0D0A07"/>
-  <title>Onde Tem Samba</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <link rel="stylesheet" href="style.css"/>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="description" content="Encontre eventos de samba perto de você."/>
+<meta name="theme-color" content="#0D0A07"/>
+<title>Onde Tem Samba</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:#0D0A07;font-family:'Space Grotesk',sans-serif;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.04) 2px,rgba(0,0,0,.04) 4px);}
+
+/* MAP */
+#map{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;}
+.leaflet-container{background:#0D0A07!important;}
+.leaflet-tile-pane{filter:grayscale(100%) brightness(32%) sepia(45%);}
+
+/* ZOOM */
+.leaflet-bottom.leaflet-right{bottom:20px;right:16px;}
+.leaflet-control-zoom{border:1px solid rgba(232,135,42,.35)!important;border-radius:8px!important;overflow:hidden;box-shadow:0 0 14px rgba(232,135,42,.12)!important;}
+.leaflet-control-zoom a{width:32px!important;height:32px!important;line-height:32px!important;background:rgba(13,10,7,.9)!important;color:#E8872A!important;font-size:18px!important;font-weight:300!important;border-bottom:1px solid rgba(232,135,42,.2)!important;display:flex!important;align-items:center;justify-content:center;transition:background .15s;}
+.leaflet-control-zoom a:last-child{border-bottom:none!important;}
+.leaflet-control-zoom a:hover{background:rgba(232,135,42,.2)!important;}
+.leaflet-control-attribution{background:rgba(13,10,7,.55)!important;color:rgba(244,235,216,.28)!important;font-size:10px!important;}
+.leaflet-control-attribution a{color:rgba(232,135,42,.45)!important;}
+
+/* TOPBAR */
+#topbar{position:fixed;top:14px;left:14px;right:14px;z-index:900;height:62px;
+  background:rgba(13,10,7,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-radius:10px;padding:0 18px;display:flex;align-items:center;gap:0;}
+.brand{display:flex;align-items:center;gap:9px;flex-shrink:0;padding-right:18px;}
+.brand-dot{width:28px;height:28px;border-radius:50%;background:#E8872A;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 12px rgba(232,135,42,.5);flex-shrink:0;}
+.brand-name{font-size:14px;font-weight:700;color:#F4EBD8;letter-spacing:.04em;white-space:nowrap;}
+.brand-name em{color:#E8872A;font-style:normal;}
+.pipe{width:1px;height:22px;background:rgba(232,135,42,.28);flex-shrink:0;}
+.search-wrap{flex:1;display:flex;align-items:center;gap:8px;padding:0 14px;min-width:0;}
+#searchbox{flex:1;min-width:0;background:transparent;border:none;outline:none;
+  font-size:13px;color:#F4EBD8;font-family:'Space Grotesk',sans-serif;letter-spacing:.02em;}
+#searchbox::placeholder{color:rgba(244,235,216,.28);}
+#filters{display:flex;align-items:center;gap:6px;padding-left:14px;flex-shrink:0;}
+.fb{background:transparent;border:1px solid rgba(232,135,42,.25);color:rgba(244,235,216,.5);
+  padding:5px 14px;border-radius:20px;font-size:12px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;white-space:nowrap;transition:all .15s;letter-spacing:.04em;}
+.fb:hover{border-color:rgba(232,135,42,.6);color:#F4EBD8;}
+.fb.on{background:#E8872A;color:#0D0A07;border-color:#E8872A;font-weight:700;box-shadow:0 0 10px rgba(232,135,42,.35);}
+
+/* MOBILE FILTERS */
+#filters-mobile{display:none;position:fixed;top:84px;left:14px;right:14px;z-index:890;
+  padding:8px 12px;background:rgba(13,10,7,.82);backdrop-filter:blur(10px);
+  border-radius:10px;gap:6px;flex-wrap:wrap;justify-content:center;}
+@media(max-width:640px){
+  #topbar{height:54px;padding:0 12px;top:10px;left:10px;right:10px;}
+  .pipe.pipe-filters,#filters{display:none;}
+  #filters-mobile{display:flex;top:72px;left:10px;right:10px;}
+  .brand-name{font-size:13px;}
+}
+
+/* OVERLAY */
+#overlay{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.52);
+  opacity:0;pointer-events:none;transition:opacity .22s;}
+#overlay.on{opacity:1;pointer-events:all;}
+
+/* DETAIL BOX */
+#detail{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.88);
+  z-index:1000;width:318px;background:rgba(16,9,3,.97);
+  border:1px solid rgba(232,135,42,.4);border-radius:14px;overflow:hidden;
+  box-shadow:0 0 48px rgba(232,135,42,.18),0 20px 52px rgba(0,0,0,.75);
+  opacity:0;pointer-events:none;transition:opacity .22s,transform .22s cubic-bezier(.34,1.36,.64,1);}
+#detail.open{opacity:1;pointer-events:all;transform:translate(-50%,-50%) scale(1);}
+
+#detail-img-wrap{position:relative;width:100%;height:158px;overflow:hidden;}
+#detail-img{width:100%;height:158px;object-fit:cover;display:block;filter:saturate(65%) brightness(82%);}
+#detail-img-placeholder{width:100%;height:158px;background:linear-gradient(135deg,#2A1005,#5C3214);
+  display:flex;align-items:center;justify-content:center;font-size:44px;}
+#detail-img-wrap::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.09) 3px,rgba(0,0,0,.09) 4px);}
+#detail-img-wrap::before{content:'';position:absolute;bottom:0;left:0;right:0;height:52px;z-index:3;
+  pointer-events:none;background:linear-gradient(transparent,rgba(16,9,3,.97));}
+#detail-tags{position:absolute;bottom:9px;left:13px;z-index:4;display:flex;gap:5px;flex-wrap:wrap;}
+.dtag{font-size:10px;padding:2px 8px;border-radius:8px;background:#E8872A;color:#0D0A07;
+  font-weight:700;letter-spacing:.04em;box-shadow:0 0 7px rgba(232,135,42,.5);}
+#detail-close{position:absolute;top:10px;right:10px;z-index:5;width:26px;height:26px;
+  border-radius:50%;background:rgba(13,10,7,.72);border:1px solid rgba(232,135,42,.3);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+#detail-close:hover{background:rgba(232,135,42,.2);border-color:#E8872A;}
+
+#detail-body{padding:15px 16px;}
+#detail-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:11px;}
+#detail-name{font-size:14px;font-weight:700;color:#F4EBD8;line-height:1.25;}
+#detail-badge{font-size:10px;padding:3px 8px;border-radius:8px;flex-shrink:0;margin-top:2px;
+  background:rgba(232,135,42,.14);color:#E8872A;border:1px solid rgba(232,135,42,.3);
+  font-weight:600;letter-spacing:.05em;white-space:nowrap;}
+#detail-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;margin-bottom:14px;}
+.dm{display:flex;align-items:flex-start;gap:6px;font-size:11px;color:rgba(244,235,216,.48);}
+.dm svg{width:13px;height:13px;stroke:#E8872A;fill:none;flex-shrink:0;margin-top:1px;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.dm span{color:rgba(244,235,216,.8);line-height:1.3;}
+#detail-hr{height:1px;background:rgba(232,135,42,.14);margin-bottom:13px;}
+#detail-btn{display:block;width:100%;padding:10px;background:#E8872A;color:#0D0A07;border:none;
+  border-radius:8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  cursor:pointer;font-family:'Space Grotesk',sans-serif;
+  box-shadow:0 0 16px rgba(232,135,42,.35);transition:all .15s;}
+#detail-btn:hover{background:#F5A94A;box-shadow:0 0 24px rgba(232,135,42,.55);}
+
+/* PINS */
+.ots-pin{display:flex;align-items:center;justify-content:center;}
+.ots-pin-head{width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+  background:#E8872A;border:2px solid rgba(255,255,255,.5);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 14px rgba(232,135,42,.5),0 2px 6px rgba(0,0,0,.5);cursor:pointer;transition:box-shadow .15s;}
+.ots-pin-head:hover{box-shadow:0 0 26px rgba(232,135,42,.75),0 2px 8px rgba(0,0,0,.5);}
+.ots-pin-icon{transform:rotate(45deg);display:flex;align-items:center;justify-content:center;width:20px;height:20px;}
+</style>
 </head>
 <body>
 
 <div id="map"></div>
 <div id="overlay"></div>
 
+<!-- TOPBAR -->
 <div id="topbar">
   <div class="brand">
     <div class="brand-dot">
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="14" height="14">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="#0D0A07" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
       </svg>
     </div>
     <div class="brand-name">onde tem <em>samba</em></div>
   </div>
-
   <div class="pipe"></div>
-
   <div class="search-wrap">
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="rgba(244,235,216,.35)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
     </svg>
-    <input id="searchbox" type="text" placeholder="Buscar evento" autocomplete="off" spellcheck="false"/>
+    <input id="searchbox" type="text" placeholder="Buscar evento" autocomplete="off"/>
   </div>
-
   <div class="pipe pipe-filters"></div>
-
   <div id="filters">
-    <button class="fb on"  data-filter="todos">Todos</button>
-    <button class="fb"     data-filter="hoje">Hoje</button>
-    <button class="fb"     data-filter="fds">Fim de semana</button>
+    <button class="fb on" data-filter="todos">Todos</button>
+    <button class="fb"    data-filter="hoje">Hoje</button>
+    <button class="fb"    data-filter="fds">Fim de semana</button>
   </div>
 </div>
 
+<!-- FILTROS MOBILE -->
 <div id="filters-mobile">
-  <button class="fb on"  data-filter="todos">Todos</button>
-  <button class="fb"     data-filter="hoje">Hoje</button>
-  <button class="fb"     data-filter="fds">Fim de semana</button>
+  <button class="fb on" data-filter="todos">Todos</button>
+  <button class="fb"    data-filter="hoje">Hoje</button>
+  <button class="fb"    data-filter="fds">Fim de semana</button>
 </div>
 
+<!-- DETAIL BOX -->
 <div id="detail">
   <div id="detail-img-wrap">
     <div id="detail-img-slot"></div>
     <div id="detail-tags"></div>
     <button id="detail-close" aria-label="Fechar">
-      <svg viewBox="0 0 24 24" width="12" height="12" stroke="#F4EBD8" stroke-width="2.2" fill="none">
-        <line x1="18" y1="6" x2="6" y2="18"/>
-        <line x1="6" y1="6" x2="18" y2="18"/>
+      <svg viewBox="0 0 24 24" width="12" height="12" stroke="#F4EBD8" stroke-width="2.5" fill="none">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
       </svg>
     </button>
   </div>
@@ -72,8 +179,187 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="config.js"></script>
-<script src="db.js"></script>
-<script src="app.js"></script>
+<script>
+// ============================================================
+// CONFIGURAÇÃO — edite apenas este bloco para conectar ao banco
+// ============================================================
+const SUPABASE_URL     = 'https://SEU_PROJECT_ID.supabase.co';
+const SUPABASE_ANON    = 'SUA_ANON_KEY_AQUI';
+const MAP_CENTER       = [-23.2165, -47.5238];
+const MAP_ZOOM         = 14;
+// ============================================================
+
+// ── Dados locais de exemplo ──
+const today = new Date();
+const add = n => { const d=new Date(today); d.setDate(d.getDate()+n); return d.toISOString().split('T')[0]; };
+
+const SEED = [
+  {id:1,nome:"Pagode no Coreto",local:"Praça Coronel Almeida",bairro:"Centro",
+   lat:-23.2155,lng:-47.5270,data:add(0),hora:"19h",recorrencia:"Toda sexta",
+   tipo_ingresso:"gratuito",preco:null,estilos:["pagode"],
+   foto_url:"https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=620&q=80"},
+  {id:2,nome:"Roda de samba do Léo",local:"Bar do Léo",bairro:"Centro",
+   lat:-23.2142,lng:-47.5258,data:add(1),hora:"21h",recorrencia:"Todo sábado",
+   tipo_ingresso:"pago",preco:15,estilos:["raiz","pagode"],
+   foto_url:"https://images.unsplash.com/photo-1501386761578-eaa54b492c24?w=620&q=80"},
+  {id:3,nome:"Samba às margens do Tietê",local:"Orla do Rio Tietê",bairro:"Beira Rio",
+   lat:-23.2098,lng:-47.5312,data:add(2),hora:"17h",recorrencia:"Todo domingo",
+   tipo_ingresso:"gratuito",preco:null,estilos:["raiz"],
+   foto_url:"https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=620&q=80"},
+  {id:4,nome:"Partido alto na Vila",local:"Associação Recreativa",bairro:"Vila Maria",
+   lat:-23.2178,lng:-47.5220,data:add(3),hora:"20h",recorrencia:"Quinzenal",
+   tipo_ingresso:"pago",preco:10,estilos:["partido alto"],
+   foto_url:"https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=620&q=80"},
+  {id:5,nome:"Pagode Monções",local:"Espaço das Monções",bairro:"Jd. Monções",
+   lat:-23.2205,lng:-47.5185,data:add(5),hora:"20h30",recorrencia:"Semanal",
+   tipo_ingresso:"pago",preco:20,estilos:["pagode"],
+   foto_url:"https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=620&q=80"},
+  {id:6,nome:"Noite do cavaquinho",local:"Boteco do Tião",bairro:"Jd. Martelli",
+   lat:-23.2130,lng:-47.5295,data:add(0),hora:"20h",recorrencia:"Toda quinta",
+   tipo_ingresso:"gratuito",preco:null,estilos:["raiz"],
+   foto_url:"https://images.unsplash.com/photo-1501386761578-eaa54b492c24?w=620&q=80"},
+  {id:7,nome:"Samba de raiz no Bambuzal",local:"Chácara Bambuzal",bairro:"Bambu",
+   lat:-23.2240,lng:-47.5148,data:add(1),hora:"18h",recorrencia:"Único",
+   tipo_ingresso:"pago",preco:25,estilos:["raiz"],
+   foto_url:"https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=620&q=80"},
+];
+
+// ── Helpers ──
+function dayType(ds){
+  const d=new Date(ds+'T12:00:00'),diff=Math.round((d-today)/86400000),dow=d.getDay();
+  if(diff===0)return'hoje'; if(dow===0||dow===6)return'fds'; return'sem';
+}
+function dayLabel(ds){
+  if(dayType(ds)==='hoje')return'HOJE';
+  const d=new Date(ds+'T12:00:00');
+  return d.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'}).toUpperCase();
+}
+function fmtIngresso(ev){
+  if(ev.tipo_ingresso==='gratuito')return'Gratuito';
+  if(ev.tipo_ingresso==='chapeu')return'Chapéu';
+  return ev.preco?`R$ ${Number(ev.preco).toFixed(0)}`:'A confirmar';
+}
+
+// ── Pandeiro SVG ──
+const PANDEIRO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none">
+  <circle cx="12" cy="12" r="10" stroke="#0D0A07" stroke-width="2.5"/>
+  <circle cx="12" cy="12" r="6" stroke="#0D0A07" stroke-width="1.5" stroke-dasharray="2 2"/>
+  <rect x="1" y="10.5" width="2.5" height="3.5" rx=".7" fill="#0D0A07" transform="rotate(-40 12 12) translate(-11 0)"/>
+  <rect x="1" y="10.5" width="2.5" height="3.5" rx=".7" fill="#0D0A07" transform="rotate(80 12 12) translate(-11 0)"/>
+  <rect x="1" y="10.5" width="2.5" height="3.5" rx=".7" fill="#0D0A07" transform="rotate(200 12 12) translate(-11 0)"/>
+  <circle cx="12" cy="12" r="2" fill="#0D0A07"/>
+</svg>`;
+
+function makeIcon(faded){
+  const html=`<div class="ots-pin" style="opacity:${faded?0.13:1}">
+    <div class="ots-pin-head"><span class="ots-pin-icon">${PANDEIRO}</span></div>
+  </div>`;
+  return L.divIcon({html,className:'',iconSize:[36,42],iconAnchor:[18,40],popupAnchor:[0,-42]});
+}
+
+// ── Estado ──
+let map, layer, allEvents=[], curFilter='todos', curSearch='';
+
+// ── Mapa ──
+function initMap(){
+  map = L.map('map',{center:MAP_CENTER,zoom:MAP_ZOOM,zoomControl:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19,attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a>',crossOrigin:true
+  }).addTo(map);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  layer = L.layerGroup().addTo(map);
+}
+
+// ── Filtra ──
+function filtered(){
+  return allEvents.filter(ev=>{
+    const t=dayType(ev.data);
+    if(curFilter==='hoje'&&t!=='hoje')return false;
+    if(curFilter==='fds'&&t!=='fds')return false;
+    if(curSearch){
+      const q=curSearch.toLowerCase();
+      if(![ev.nome,ev.bairro,ev.local].join(' ').toLowerCase().includes(q))return false;
+    }
+    return true;
+  });
+}
+
+// ── Pins ──
+function renderPins(){
+  const vis=filtered(), ids=new Set(vis.map(e=>e.id));
+  layer.clearLayers();
+  allEvents.forEach(ev=>{
+    const m=L.marker([ev.lat,ev.lng],{icon:makeIcon(!ids.has(ev.id)),zIndexOffset:ids.has(ev.id)?100:0});
+    if(ids.has(ev.id)) m.on('click',()=>{map.panTo([ev.lat,ev.lng],{animate:true,duration:.4});openDetail(ev);});
+    m.addTo(layer);
+  });
+}
+
+// ── Detail ──
+function openDetail(ev){
+  document.getElementById('detail-img-slot').innerHTML = ev.foto_url
+    ? `<img id="detail-img" src="${ev.foto_url}" alt="${ev.nome}" onerror="this.outerHTML='<div id=detail-img-placeholder>🥁</div>'">`
+    : `<div id="detail-img-placeholder">🥁</div>`;
+  document.getElementById('detail-tags').innerHTML=(ev.estilos||[]).map(s=>`<span class="dtag">${s}</span>`).join('');
+  document.getElementById('detail-name').textContent=ev.nome;
+  document.getElementById('detail-badge').textContent=dayLabel(ev.data);
+  document.getElementById('detail-meta').innerHTML=`
+    <div class="dm"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>${ev.local}</span></div>
+    <div class="dm"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><span>${ev.bairro}</span></div>
+    <div class="dm"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>${ev.hora} · ${ev.recorrencia}</span></div>
+    <div class="dm"><svg viewBox="0 0 24 24"><path d="M2 9a3 3 0 010 6v2a2 2 0 002 2h16a2 2 0 002-2v-2a3 3 0 010-6V7a2 2 0 00-2-2H4a2 2 0 00-2 2v2z"/></svg><span>${fmtIngresso(ev)}</span></div>`;
+  document.getElementById('detail-btn').onclick=()=>alert('Interesse registrado em:\n'+ev.nome);
+  document.getElementById('detail').classList.add('open');
+  document.getElementById('overlay').classList.add('on');
+}
+function closeDetail(){
+  document.getElementById('detail').classList.remove('open');
+  document.getElementById('overlay').classList.remove('on');
+}
+
+// ── Sync filtros ──
+function syncFilters(f){
+  document.querySelectorAll('.fb').forEach(b=>b.classList.toggle('on',b.dataset.filter===f));
+}
+
+// ── Carrega eventos ──
+async function loadEvents(){
+  const configured = SUPABASE_URL !== 'https://SEU_PROJECT_ID.supabase.co'
+                  && SUPABASE_ANON !== 'SUA_ANON_KEY_AQUI';
+  if(configured){
+    try{
+      const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+      const todayStr = new Date().toISOString().split('T')[0];
+      const {data,error} = await client.from('v_eventos_mapa').select('*').gte('data_inicio',todayStr).order('data_inicio');
+      if(error) throw error;
+      allEvents = (data||[]).map(e=>({
+        id:e.id, nome:e.nome, local:e.organizador_nome, bairro:e.cidade||'',
+        lat:e.lat, lng:e.lng, data:e.data_inicio,
+        hora:(e.hora_inicio||'').slice(0,5).replace(':','h'),
+        recorrencia:e.recorrencia||'', tipo_ingresso:e.tipo_ingresso,
+        preco:e.preco, estilos:e.estilos||[], foto_url:e.foto_url||null,
+      }));
+    }catch(err){
+      console.warn('[OTS] Supabase erro, usando dados locais:',err.message);
+      allEvents = SEED;
+    }
+  } else {
+    allEvents = SEED;
+  }
+  renderPins();
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded',()=>{
+  initMap();
+  document.getElementById('overlay').addEventListener('click',closeDetail);
+  document.getElementById('detail-close').addEventListener('click',closeDetail);
+  document.getElementById('searchbox').addEventListener('input',e=>{curSearch=e.target.value.trim();renderPins();});
+  document.querySelectorAll('.fb').forEach(btn=>btn.addEventListener('click',()=>{
+    curFilter=btn.dataset.filter; syncFilters(curFilter); closeDetail(); renderPins();
+  }));
+  loadEvents();
+});
+</script>
 </body>
 </html>
